@@ -165,4 +165,9 @@ tccutil reset Camera com.openai.codex
 
 ## 产品文档
 
-PRD 持续维护在 [`docs/prd.md`](docs/prd.md)。
+项目文档入口：
+
+- [`docs/README.md`](docs/README.md)：文档阅读顺序
+- [`docs/prd.md`](docs/prd.md)：产品定位、交互原则和路线图
+- [`docs/architecture.md`](docs/architecture.md)：当前工程架构和状态机
+- [`docs/runbook.md`](docs/runbook.md)：运行、权限、调参和排障
