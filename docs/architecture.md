@@ -1,105 +1,105 @@
-# Architecture
+# 架构说明
 
-## Overview
+## 概览
 
-New Interaction is a local camera-to-mouse pipeline:
+New Interaction 是一个本地运行的 camera-to-mouse pipeline：
 
 ```text
-macOS camera
-  -> OpenCV frame capture
+macOS 摄像头
+  -> OpenCV 帧捕获
   -> MediaPipe Hand Landmarker
-  -> HandFrame landmarks
+  -> HandFrame 关键点
   -> GestureStateMachine
   -> InteractionEvent
-  -> DryRunInputController or PyAutoGUIInputController
-  -> macOS mouse events
+  -> DryRunInputController 或 PyAutoGUIInputController
+  -> macOS 鼠标事件
 ```
 
-The current prototype is intentionally rule-based. It validates interaction design, permission behavior, and mouse injection before the product moves into data collection or model training.
+当前原型刻意采用 rule-based 方案。它先验证交互设计、权限行为和鼠标事件注入，再进入数据采集或模型训练阶段。
 
-## Modules
+## 模块
 
-| File | Responsibility |
+| 文件 | 职责 |
 | --- | --- |
-| `src/new_interaction/app.py` | CLI parsing, config assembly, camera loop, debug-state printing |
-| `src/new_interaction/camera.py` | OpenCV camera access, MediaPipe hand detection, handedness normalization |
-| `src/new_interaction/gestures.py` | Gesture state machine and interaction event generation |
-| `src/new_interaction/input_controller.py` | Dry-run logging and PyAutoGUI mouse event injection |
-| `tests/` | Unit tests for CLI parsing, camera conversion, gesture state, and input injection |
+| `src/new_interaction/app.py` | CLI 解析、配置组装、摄像头循环、debug-state 输出 |
+| `src/new_interaction/camera.py` | OpenCV 摄像头访问、MediaPipe 手部检测、handedness 归一化 |
+| `src/new_interaction/gestures.py` | 手势状态机与交互事件生成 |
+| `src/new_interaction/input_controller.py` | Dry-run 日志与 PyAutoGUI 鼠标事件注入 |
+| `tests/` | 覆盖 CLI 解析、摄像头转换、手势状态和输入注入的单元测试 |
 
-## Data Model
+## 数据模型
 
-`HandFrame` is the normalized input to the gesture state machine:
+`HandFrame` 是手势状态机的归一化输入：
 
-- `landmarks`: MediaPipe's 21 hand landmarks mapped to normalized `Point(x, y)`.
-- `handedness`: physical hand label after mirrored-camera correction.
-- `confidence`: detection confidence.
+- `landmarks`：MediaPipe 的 21 个手部关键点，映射为归一化 `Point(x, y)`。
+- `handedness`：经过镜像摄像头修正后的物理左右手标签。
+- `confidence`：检测置信度。
 
-`InteractionEvent` is the output contract:
+`InteractionEvent` 是输出契约：
 
-- absolute pointer events use `position`.
-- relative pointer events use `dx` and `dy`.
-- click events carry `click_count`.
-- pause events carry `paused`.
+- absolute pointer event 使用 `position`。
+- relative pointer event 使用 `dx` 和 `dy`。
+- click event 携带 `click_count`。
+- pause event 携带 `paused`。
 
-## Gesture State Machine
+## 手势状态机
 
-The state machine enforces intent separation before mouse events are emitted.
+状态机会先完成意图隔离，再发出鼠标事件。
 
-Core states:
+核心状态：
 
-- `active_move`: relative pointer movement is active.
-- `clutch`: index is relaxed; hand may reposition without cursor movement.
-- `edge_cruise`: hand is held near the comfort-zone edge; cursor continues in that direction.
-- `pinch_candidate`: strict pinch is being confirmed across consecutive frames.
-- `pinch_active`: strict pinch is held but not yet dragging.
-- `dragging`: pinch has been held beyond the drag threshold.
-- `scrolling`: two-finger scroll mode is active.
-- `paused`: open-palm pause is active.
-- `ignored_hand`: detected hand is not the configured target hand.
-- `tracking_lost`: no credible hand is visible.
+- `active_move`：relative pointer movement 激活。
+- `clutch`：食指放松；手可以重新定位而不移动指针。
+- `edge_cruise`：手保持在舒适区边缘附近；指针继续向对应方向移动。
+- `pinch_candidate`：严格 pinch 正在跨连续帧确认。
+- `pinch_active`：严格 pinch 已保持，但尚未进入拖拽。
+- `dragging`：pinch 保持时间超过拖拽阈值。
+- `scrolling`：双指滚动模式激活。
+- `paused`：张开手掌暂停模式激活。
+- `ignored_hand`：检测到的手不是配置的目标手。
+- `tracking_lost`：没有可信的手部画面。
 
-## Pointer Mapping
+## 指针映射
 
-The default movement mode is `relative`.
+默认移动模式是 `relative`。
 
-Relative mode behaves like an air trackpad:
+Relative mode 像 air trackpad 一样工作：
 
-- first stable frames establish reference and comfort-zone center.
-- index fingertip movement emits normalized deltas.
-- index relaxed enters clutch and resets the reference on resume.
-- dynamic gain scales faster motions more strongly than slow motions.
-- `relative_max_delta` clamps single-frame jumps.
-- edge cruise adds a small continuous delta near comfort-zone edges.
+- 前几帧稳定画面用于建立参考点和舒适区中心。
+- 食指指尖移动会发出归一化 delta。
+- 食指放松进入 clutch，并在恢复时重置参考点。
+- dynamic gain 会让快速动作获得比慢速动作更强的放大。
+- `relative_max_delta` 限制单帧跳变。
+- edge cruise 会在舒适区边缘附近增加小幅连续 delta。
 
-Absolute mode remains available with `--movement-mode absolute` for debugging. In absolute mode, normalized fingertip position maps directly to screen coordinates.
+Absolute mode 仍可通过 `--movement-mode absolute` 启用，主要用于调试。在 absolute mode 中，归一化食指位置会直接映射到屏幕坐标。
 
-## Pinch And Drag
+## Pinch 与拖拽
 
-Pinch is intentionally conservative:
+Pinch 判断刻意保持保守：
 
-- absolute thumb-index distance must be below `pinch_threshold`.
-- scaled thumb-index distance must be below `pinch_scale_threshold`.
-- distance must remain isolated from middle finger clustering.
-- multiple consecutive frames are required before activation.
-- release threshold is separate from entry threshold.
+- 拇指和食指的绝对距离必须低于 `pinch_threshold`。
+- 拇指和食指的手部缩放距离必须低于 `pinch_scale_threshold`。
+- 该距离必须与中指聚拢保持隔离，避免误判。
+- 激活前必须满足多帧连续确认。
+- 释放阈值与进入阈值分离，形成 hysteresis。
 
-In relative mode, click and drag happen at the current system cursor location. In absolute mode, click and drag use a hover anchor so the pinch motion itself does not move the click target.
+在 relative mode 中，点击和拖拽发生在当前系统指针位置。在 absolute mode 中，点击和拖拽使用 hover anchor，避免 pinch 动作本身改变点击目标。
 
-## Input Injection
+## 输入注入
 
-`PyAutoGUIInputController` injects mouse events only after `--control` is set.
+只有设置 `--control` 后，`PyAutoGUIInputController` 才会注入真实鼠标事件。
 
-- absolute move uses `moveTo`.
-- relative move uses `moveRel` or a fallback based on current position.
-- macOS drag uses `dragTo` or `dragRel` with `button="left"` and `mouseDownUp=False`.
-- user mouse takeover is detected by comparing current pointer position to the last injected position.
-- `tracking_lost` and `pause_changed` rearm takeover suppression.
+- absolute move 使用 `moveTo`。
+- relative move 使用 `moveRel`，必要时 fallback 到基于当前坐标的移动。
+- macOS drag 使用 `dragTo` 或 `dragRel`，参数为 `button="left"` 和 `mouseDownUp=False`。
+- 用户鼠标接管通过比较当前指针位置与上次注入位置判断。
+- `tracking_lost` 和 `pause_changed` 会重新启用接管保护。
 
-## Safety Boundaries
+## 安全边界
 
-- The app defaults to dry-run mode and only prints events.
-- Real input injection requires explicit `--control`.
-- PyAutoGUI fail-safe remains enabled; moving the pointer to a screen corner can stop runaway control.
-- Low confidence, non-target hand, ignored hand, and lost tracking do not inject high-risk events.
-- Camera data is processed locally. The current prototype does not persist video, screenshots, hand landmarks, or telemetry.
+- 应用默认是 dry-run mode，只打印事件。
+- 真实输入注入必须显式设置 `--control`。
+- PyAutoGUI fail-safe 保持开启；把指针移动到屏幕角落可以停止失控输入。
+- 低置信度、非目标手、ignored hand 和 lost tracking 不会注入高风险事件。
+- 摄像头数据在本地处理。当前原型不会持久化视频、截图、手部关键点或遥测数据。

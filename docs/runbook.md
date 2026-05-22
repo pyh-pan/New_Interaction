@@ -1,8 +1,8 @@
-# Runbook
+# 运行手册
 
-## Environment
+## 环境
 
-Use Python 3.11 on macOS:
+在 macOS 上使用 Python 3.11：
 
 ```bash
 /opt/homebrew/bin/python3.11 -m venv .venv
@@ -10,57 +10,57 @@ Use Python 3.11 on macOS:
 .venv/bin/python -m pip install -e ".[dev]"
 ```
 
-Run tests:
+运行测试：
 
 ```bash
 .venv/bin/python -m pytest -v
 ```
 
-## Dry-Run Validation
+## Dry-Run 验证
 
-Start without mouse injection:
+先在不注入真实鼠标事件的情况下启动：
 
 ```bash
 .venv/bin/python -m new_interaction.app --show-preview --debug-state --max-frames 300
 ```
 
-Dry-run output should show state changes and `move-rel`, `click`, `drag-*`, `scroll`, or `pause` events.
+Dry-run 输出应能看到状态变化，以及 `move-rel`、`click`、`drag-*`、`scroll` 或 `pause` 事件。
 
-## Real Mouse Control
+## 真实鼠标控制
 
-Enable system input injection explicitly:
+显式开启系统输入注入：
 
 ```bash
 .venv/bin/python -m new_interaction.app --control --show-preview --debug-state
 ```
 
-Stop options:
+停止方式：
 
-- press `Ctrl+C` in the terminal.
-- press `q` in the OpenCV preview window.
-- move the mouse to a screen corner to trigger PyAutoGUI fail-safe.
+- 在终端按 `Ctrl+C`。
+- 在 OpenCV 预览窗口按 `q`。
+- 把鼠标移动到屏幕角落，触发 PyAutoGUI fail-safe。
 
-## macOS Permissions
+## macOS 权限
 
-Camera permission is granted to the app that requests the camera. If running from Terminal:
+摄像头权限授予的是发起摄像头请求的应用。如果从 Terminal 运行：
 
 ```bash
 tccutil reset Camera com.apple.Terminal
 ```
 
-If running from Codex:
+如果从 Codex 运行：
 
 ```bash
 tccutil reset Camera com.openai.codex
 ```
 
-For real mouse control, grant Accessibility permission to the terminal or app running the script:
+真实鼠标控制还需要给运行脚本的终端或应用授予 Accessibility 权限：
 
 ```text
 System Settings > Privacy & Security > Accessibility
 ```
 
-## Recommended Phase 1.5 Command
+## 推荐 Phase 1.5 命令
 
 ```bash
 .venv/bin/python -m new_interaction.app \
@@ -78,42 +78,42 @@ System Settings > Privacy & Security > Accessibility
   --pointer-smoothing-alpha 0.30
 ```
 
-## Common Tuning
+## 常用调参
 
-| Symptom | First adjustment |
+| 现象 | 优先调整 |
 | --- | --- |
-| Cursor jumps when hand enters frame | Increase `--relative-warmup-frames` to `5`, or lower `--relative-max-delta` to `0.05` |
-| Cursor too slow on a large screen | Increase `--relative-sensitivity` gradually |
-| Fast movement too weak | Increase `--relative-max-gain` gradually |
-| Precise clicking is difficult | Lower `--relative-min-gain` or lower `--relative-sensitivity` |
-| Cursor jitters | Lower `--pointer-smoothing-alpha` toward `0.25` |
-| Pinch triggers before fingers touch | Lower `--pinch-scale-threshold` |
-| Drag release feels late | Lower `--pinch-release-scale-threshold` |
-| Left hand or face touch triggers events | Keep `--target-hand Right`; inspect `ignored_hand` state |
+| 手入镜时指针跳动 | 将 `--relative-warmup-frames` 提高到 `5`，或将 `--relative-max-delta` 降到 `0.05` |
+| 大屏幕上指针移动太慢 | 逐步提高 `--relative-sensitivity` |
+| 快速移动仍然不够强 | 逐步提高 `--relative-max-gain` |
+| 精准点击困难 | 降低 `--relative-min-gain` 或降低 `--relative-sensitivity` |
+| 指针抖动 | 将 `--pointer-smoothing-alpha` 降到接近 `0.25` |
+| 手指未真正碰到就触发 pinch | 降低 `--pinch-scale-threshold` |
+| 拖拽释放延迟明显 | 降低 `--pinch-release-scale-threshold` |
+| 左手或摸脸触发事件 | 保持 `--target-hand Right`；查看 `ignored_hand` 状态 |
 
-## State Debugging
+## 状态调试
 
-Important states:
+重要状态：
 
-- `active_move`: relative pointer movement is active.
-- `clutch`: index relaxed; hand can reposition without pointer movement.
-- `edge_cruise`: comfort-zone edge is held; pointer continues moving.
-- `pinch_candidate`: strict pinch is being confirmed.
-- `pinch_active`: pinch is held.
-- `dragging`: drag is active.
-- `scrolling`: two-finger scroll mode is active.
-- `paused`: open palm pause is active.
-- `tracking_lost`: no credible hand frame.
+- `active_move`：relative pointer movement 激活。
+- `clutch`：食指放松；手可以重新定位而不移动指针。
+- `edge_cruise`：保持在舒适区边缘；指针继续移动。
+- `pinch_candidate`：严格 pinch 正在确认。
+- `pinch_active`：pinch 正在保持。
+- `dragging`：拖拽已激活。
+- `scrolling`：双指滚动模式激活。
+- `paused`：张开手掌暂停模式激活。
+- `tracking_lost`：没有可信的手部画面。
 
-## Fallbacks
+## Fallback 调试
 
-Return to absolute mapping for debugging:
+调试时可回到 absolute mapping：
 
 ```bash
 .venv/bin/python -m new_interaction.app --control --show-preview --debug-state --movement-mode absolute
 ```
 
-Disable real mouse injection and inspect event output:
+关闭真实鼠标注入，只查看事件输出：
 
 ```bash
 .venv/bin/python -m new_interaction.app --show-preview --debug-state
